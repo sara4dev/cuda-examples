@@ -9,6 +9,8 @@ import cupy as cp
 import numpy as np
 import time
 
+from cuda_utils import parse_compute_capability
+
 
 def main():
     print("=" * 70)
@@ -40,7 +42,7 @@ Your GPU has TWO types of compute units:
     
     # Check tensor core support
     compute_cap = device.compute_capability
-    major, minor = divmod(compute_cap, 10)
+    major, minor = parse_compute_capability(compute_cap)
     
     print("\n" + "=" * 70)
     print("YOUR GPU CAPABILITIES")

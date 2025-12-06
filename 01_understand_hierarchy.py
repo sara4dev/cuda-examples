@@ -14,8 +14,15 @@ Streaming Multiprocessor (SM):
 """
 
 from cuda.bindings import driver as cuda
-from cuda.bindings import nvrtc
 import numpy as np
+
+from cuda_utils import (
+    check_cuda_errors,
+    init_cuda,
+    create_cuda_context,
+    compile_cuda_kernel,
+    get_device_attributes,
+)
 
 
 # CUDA kernel that prints thread/block information
@@ -77,82 +84,20 @@ void vector_add(float *a, float *b, float *c, int n) {
 """
 
 
-def check_cuda_errors(result):
-    """Helper to check CUDA errors"""
-    if result[0].value != 0:
-        raise RuntimeError(f"CUDA Error: {result[0]}")
-    return result[1] if len(result) > 1 else None
-
-
-def compile_cuda_kernel(source):
-    """Compile CUDA source code"""
-    # Create program
-    err, prog = nvrtc.nvrtcCreateProgram(
-        str.encode(source), b"kernel.cu", 0, [], []
-    )
-    if err != nvrtc.nvrtcResult.NVRTC_SUCCESS:
-        raise RuntimeError(f"Failed to create program: {err}")
-    
-    # Compile
-    opts = [b'--gpu-architecture=compute_75']
-    err, = nvrtc.nvrtcCompileProgram(prog, len(opts), opts)
-    
-    if err != nvrtc.nvrtcResult.NVRTC_SUCCESS:
-        # Get compilation log
-        err, log_size = nvrtc.nvrtcGetProgramLogSize(prog)
-        log = b' ' * log_size
-        err, = nvrtc.nvrtcGetProgramLog(prog, log)
-        raise RuntimeError(f"Compilation failed:\n{log.decode()}")
-    
-    # Get PTX
-    err, ptx_size = nvrtc.nvrtcGetPTXSize(prog)
-    ptx = b' ' * ptx_size
-    err, = nvrtc.nvrtcGetPTX(prog, ptx)
-    
-    return ptx
-
-
 def get_device_info():
-    """Get CUDA device information"""
-    err, = cuda.cuInit(0)
-    check_cuda_errors((err,))
-    
-    err, device = cuda.cuDeviceGet(0)
-    check_cuda_errors((err,))
-    
-    # Get device name
-    err, name = cuda.cuDeviceGetName(128, device)
-    name = name.decode() if isinstance(name, bytes) else name
-    
-    # Get number of SMs
-    err, num_sms = cuda.cuDeviceGetAttribute(
-        cuda.CUdevice_attribute.CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, device
-    )
-    
-    # Get max threads per block
-    err, max_threads_per_block = cuda.cuDeviceGetAttribute(
-        cuda.CUdevice_attribute.CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK, device
-    )
-    
-    # Get max threads per SM
-    err, max_threads_per_sm = cuda.cuDeviceGetAttribute(
-        cuda.CUdevice_attribute.CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_MULTIPROCESSOR, device
-    )
-    
-    # Get warp size
-    err, warp_size = cuda.cuDeviceGetAttribute(
-        cuda.CUdevice_attribute.CU_DEVICE_ATTRIBUTE_WARP_SIZE, device
-    )
+    """Get CUDA device information and print it"""
+    device, name, num_sms = init_cuda()
+    attrs = get_device_attributes(device)
     
     print("=" * 70)
     print("GPU DEVICE INFORMATION")
     print("=" * 70)
     print(f"Device Name: {name}")
-    print(f"Number of SMs (Streaming Multiprocessors): {num_sms}")
-    print(f"Max Threads per Block: {max_threads_per_block}")
-    print(f"Max Threads per SM: {max_threads_per_sm}")
-    print(f"Warp Size: {warp_size} threads")
-    print(f"Max Warps per SM: {max_threads_per_sm // warp_size}")
+    print(f"Number of SMs (Streaming Multiprocessors): {attrs['num_sms']}")
+    print(f"Max Threads per Block: {attrs['max_threads_per_block']}")
+    print(f"Max Threads per SM: {attrs['max_threads_per_sm']}")
+    print(f"Warp Size: {attrs['warp_size']} threads")
+    print(f"Max Warps per SM: {attrs['max_threads_per_sm'] // attrs['warp_size']}")
     print("=" * 70)
     print()
     
@@ -167,17 +112,11 @@ def example1_print_thread_info():
     print("Configuration: 2 blocks × 4 threads per block = 8 total threads")
     print("=" * 70)
     
-    # Initialize CUDA
-    err, = cuda.cuInit(0)
-    check_cuda_errors((err,))
+    # Initialize CUDA using shared utility
+    device, _, _ = init_cuda()
+    context = create_cuda_context(device)
     
-    err, device = cuda.cuDeviceGet(0)
-    check_cuda_errors((err,))
-    
-    err, context = cuda.cuCtxCreate(None, 0, device)
-    check_cuda_errors((err,))
-    
-    # Compile kernel
+    # Compile kernel using shared utility
     ptx = compile_cuda_kernel(CUDA_SOURCE)
     
     # Load module
@@ -239,17 +178,11 @@ def example2_vector_addition():
     print("EXAMPLE 2: Vector Addition - Work Distribution Across Threads")
     print("=" * 70)
     
-    # Initialize CUDA
-    err, = cuda.cuInit(0)
-    check_cuda_errors((err,))
+    # Initialize CUDA using shared utility
+    device, _, _ = init_cuda()
+    context = create_cuda_context(device)
     
-    err, device = cuda.cuDeviceGet(0)
-    check_cuda_errors((err,))
-    
-    err, context = cuda.cuCtxCreate(None, 0, device)
-    check_cuda_errors((err,))
-    
-    # Compile kernel
+    # Compile kernel using shared utility
     ptx = compile_cuda_kernel(CUDA_SOURCE)
     
     # Load module
