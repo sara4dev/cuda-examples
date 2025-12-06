@@ -6,6 +6,8 @@ Goal: Understand how libraries automatically choose between CUDA cores and Tenso
 import cupy as cp
 import numpy as np
 
+from cuda_utils import parse_compute_capability
+
 
 def main():
     print("=" * 70)
@@ -14,7 +16,7 @@ def main():
     
     device = cp.cuda.Device()
     compute_cap = device.compute_capability
-    major, minor = divmod(compute_cap, 10)
+    major, minor = parse_compute_capability(compute_cap)
     
     print(f"\nYour GPU: Compute Capability {major}.{minor}")
     
