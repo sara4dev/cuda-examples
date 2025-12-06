@@ -6,6 +6,9 @@ Common helper functions for CUDA programming examples.
 from cuda.bindings import driver as cuda
 from cuda.bindings import nvrtc
 
+# Constants
+DEVICE_NAME_BUFFER_SIZE = 256
+
 
 def check_cuda_errors(result):
     """
@@ -43,13 +46,15 @@ def init_cuda():
     check_cuda_errors((err,))
     
     # Get device name
-    err, name = cuda.cuDeviceGetName(256, device)
+    err, name = cuda.cuDeviceGetName(DEVICE_NAME_BUFFER_SIZE, device)
+    check_cuda_errors((err,))
     device_name = name.decode() if isinstance(name, bytes) else name
     
     # Get number of SMs
     err, num_sms = cuda.cuDeviceGetAttribute(
         cuda.CUdevice_attribute.CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, device
     )
+    check_cuda_errors((err,))
     
     return device, device_name, num_sms
 
@@ -134,28 +139,35 @@ def get_device_attributes(device):
     err, attrs['num_sms'] = cuda.cuDeviceGetAttribute(
         cuda.CUdevice_attribute.CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, device
     )
+    check_cuda_errors((err,))
     
     err, attrs['max_threads_per_block'] = cuda.cuDeviceGetAttribute(
         cuda.CUdevice_attribute.CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK, device
     )
+    check_cuda_errors((err,))
     
     err, attrs['max_threads_per_sm'] = cuda.cuDeviceGetAttribute(
         cuda.CUdevice_attribute.CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_MULTIPROCESSOR, device
     )
+    check_cuda_errors((err,))
     
     err, attrs['warp_size'] = cuda.cuDeviceGetAttribute(
         cuda.CUdevice_attribute.CU_DEVICE_ATTRIBUTE_WARP_SIZE, device
     )
+    check_cuda_errors((err,))
     
     err, attrs['compute_major'] = cuda.cuDeviceGetAttribute(
         cuda.CUdevice_attribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, device
     )
+    check_cuda_errors((err,))
     
     err, attrs['compute_minor'] = cuda.cuDeviceGetAttribute(
         cuda.CUdevice_attribute.CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, device
     )
+    check_cuda_errors((err,))
     
     err, attrs['total_memory'] = cuda.cuDeviceTotalMem(device)
+    check_cuda_errors((err,))
     
     return attrs
 
